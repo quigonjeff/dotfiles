@@ -32,7 +32,7 @@ This function should only modify configuration layer settings."
 
    ;; List of configuration layers to load.
    dotspacemacs-configuration-layers
-   '(
+   '(rust
      ;; ----------------------------------------------------------------
      ;; Example of useful layers you may want to use right away.
      ;; Uncomment some layer names and press `SPC f e R' (Vim style) or
@@ -41,12 +41,16 @@ This function should only modify configuration layer settings."
      auto-completion
      better-defaults
      emacs-lisp
+     (org :variables
+          org-enable-org-journal-support t
+          org-enable-hugo-support t
+          org-enable-reveal-js-support t)
+     pdf
      git
      helm
      lsp
      markdown
      multiple-cursors
-     org
      (shell :variables
             shell-default-shell 'eshell
             shell-default-term-shell "/bin/zsh"
@@ -56,19 +60,17 @@ This function should only modify configuration layer settings."
      syntax-checking
      version-control
      treemacs
-     ;; ----------------------------------------------------------------
-     ;; Layers adicionada manualmente.
-     ;; ----------------------------------------------------------------
      csv
      html
      elm
-     ;; github
      latex
      bibtex
-     (c-c++ :variables c-c++-enable-clang-support t)
+     (c-c++ :variables
+            c-c++-backend 'lsp-clangd
+            c-c++-lsp-enable-semantic-highlight t)
      java
-     ;; common-lisp
-     python
+     common-lisp
+     (python :variables python-backend 'anaconda)
      shell-scripts
      yaml
      graphviz
@@ -76,13 +78,17 @@ This function should only modify configuration layer settings."
             scala-backend 'scala-metals
             scala-indent:use-javadoc-style t
             scala-auto-insert-asterisk-in-comments t
-            scala-use-unicode-arrows t)
+            scala-auto-start-backend t)
      (haskell :variables
               haskell-completion-backend 'ghci
               haskell-enable-hindent t)
      markdown
-     plantuml
+     (plantuml :variables plantuml-jar-path "~/.local/bin/plantuml.jar")
      google-calendar
+     mermaid
+     org-roam
+     deft
+     ammonite
      )
 
    ;; List of additional packages that will be installed without being
@@ -229,7 +235,8 @@ It should only modify the values of Spacemacs settings."
    ;; List of themes, the first of the list is loaded when spacemacs starts.
    ;; Press `SPC T n' to cycle to the next theme in the list (works great
    ;; with 2 themes variants, one dark and one light)
-   dotspacemacs-themes '(spacemacs-dark
+   dotspacemacs-themes '(dracula
+                         spacemacs-dark
                          spacemacs-light
                          cyberpunk
                          whiteboard)
@@ -248,8 +255,8 @@ It should only modify the values of Spacemacs settings."
    dotspacemacs-colorize-cursor-according-to-state t
 
    ;; Default font or prioritized list of fonts.
-   dotspacemacs-default-font '("Source Code Pro"
-                               :size 13
+   dotspacemacs-default-font '("SauceCodePro Nerd Font"
+                               :size 14
                                :weight normal
                                :width normal
                                :powerline-scale 1.1)
@@ -526,8 +533,15 @@ before packages are loaded."
   (add-to-list 'load-path "~/Dropbox/Elisp/")
   (load "jeff-utils.el")
   ;; -----------------------------------------------------------------------
-  ;; Configurações de backup
-  ;; https://www.emacswiki.org/emacs/BackupDirectory
+  (setq-default flycheck-scalastylerc "~/.local/etc/scalastyle_config.xml")
+  ;; There is currently an open issue with evil-iedit-state where exiting the
+  ;; iedit state calls iedit-cleanup despite this function being renamed
+  ;; iedit-lib-cleanup. So, waiting for the fix to be pushed upstream, let’s
+  ;; declare an alias so Spacemacs understands what I want to do when I hit ESC
+  ;; while in iedit state.
+  (defalias 'iedit-cleanup 'iedit-lib-cleanup)
+  ;; -----------------------------------------------------------------------
+  ;; Configurações de backup https://www.emacswiki.org/emacs/BackupDirectory
   ;; -----------------------------------------------------------------------
   (setq my-default-backup-dir "~/.backup/")
   (unless (file-exists-p my-default-backup-dir)
@@ -539,18 +553,40 @@ before packages are loaded."
         kept-old-versions 3
         version-control t)       ; use versioned backups
   (setq auto-save-file-name-transforms `((".*" "~/.backup/" t)))
-  ;; -----------------------------------------------------------------------
   ;; org-mode configuration
-  ;; -----------------------------------------------------------------------
   (add-to-list 'auto-mode-alist '("\\.puml\\'" . plantuml-mode))
   (with-eval-after-load 'org (require 'jeff-org-config))
-  (with-eval-after-load 'org (require 'ox-taskjuggler))
   (with-eval-after-load 'ox-latex (require 'jeff-ox-latex-config))
+  (setq ob-mermaid-cli-path "~/node_modules/.bin/mmdc")
+  ;; Org-journal configuration
+  (setq org-journal-dir "~/Dropbox/notes/"
+        org-journal-file-format "%Y-%m-%d.org"
+        org-journal-date-prefix "#+title: "
+        org-journal-date-format "%A, %Y-%m-%d"
+        org-journal-time-prefix "\n* "
+        org-journal-time-format "%R ")
+  ;; Org-roam configuration
+  (setq org-roam-directory "~/Dropbox/notes/")
+  (setq org-roam-dailies-capture-templates
+        '(("d" "daily" plain #'org-roam-capture--get-point ""
+           :immediate-finish t
+           :file-name "%<%Y-%m-%d>"
+           :head "#+title: %<%A, %Y-%m-%d>")))
+  ;; Configuração para feriados no calendário
+  (setq holiday-bahai-holidays nil
+        holiday-hebrew-holidays nil
+        holiday-islamic-holidays nil)
   ;; -----------------------------------------------------------------------
   ;; abbrev-mode configurations
   ;; -----------------------------------------------------------------------
   (setq abbrev-file-name "~/Dropbox/Elisp/abbrev-defs.el")
-  (setq-default abbrev-mode t)
+  ;; (setq-default abbrev-mode t)
+  ;; Don't move back the cursor one position when exiting insert mode
+  (setq evil-move-cursor-back nil)
+  ;; Reconfigure prefix command for lsp-mode
+  (setq lsp-keymap-prefix "C-:")
+  ;; Default directory for notes in deft
+  (setq deft-directory "~/Dropbox/notes/")
   )
 
 ;; Do not write anything past this comment. This is where Emacs will
@@ -572,19 +608,33 @@ This function is called at the very end of Spacemacs initialization."
  '(evil-want-Y-yank-to-eol nil)
  '(fci-rule-color "#383838")
  '(flycheck-python-pycompile-executable "python3")
- '(helm-completion-style (quote emacs))
+ '(helm-completion-style 'emacs)
  '(nrepl-message-colors
-   (quote
-    ("#CC9393" "#DFAF8F" "#F0DFAF" "#7F9F7F" "#BFEBBF" "#93E0E3" "#94BFF3" "#DC8CC3")))
+   '("#CC9393" "#DFAF8F" "#F0DFAF" "#7F9F7F" "#BFEBBF" "#93E0E3" "#94BFF3" "#DC8CC3"))
  '(package-selected-packages
-   (quote
-    (doom-themes cyberpunk-theme fill-column-indicator zenburn-theme yasnippet-snippets yapfify yaml-mode xterm-color ws-butler writeroom-mode winum which-key web-mode web-beautify vterm volatile-highlights vi-tilde-fringe uuidgen use-package unfill treemacs-projectile treemacs-persp treemacs-magit treemacs-icons-dired treemacs-evil toc-org terminal-here tagedit symon symbol-overlay string-inflection spaceline-all-the-icons smeargle slim-mode shell-pop scss-mode scala-mode sbt-mode sass-mode restart-emacs rainbow-delimiters pytest pyenv-mode py-isort pug-mode prettier-js popwin plantuml-mode pippel pipenv pip-requirements pcre2el password-generator paradox overseer orgit org-superstar org-ref org-projectile org-present org-pomodoro org-mime org-gcal org-download org-cliplink org-brain open-junk-file nameless mwim mvn multi-term move-text mmm-mode meghanada maven-test-mode markdown-toc magit-svn magit-section magit-gitflow macrostep lsp-ui lsp-python-ms lsp-metals lsp-java lsp-haskell lorem-ipsum live-py-mode link-hint intero insert-shebang indent-guide importmagic impatient-mode hybrid-mode hungry-delete hlint-refactor hl-todo hindent highlight-parentheses highlight-numbers highlight-indentation helm-xref helm-themes helm-swoop helm-rtags helm-pydoc helm-purpose helm-projectile helm-org-rifle helm-org helm-mode-manager helm-make helm-lsp helm-ls-git helm-hoogle helm-gitignore helm-git-grep helm-flx helm-descbinds helm-css-scss helm-company helm-c-yasnippet helm-ag haskell-snippets groovy-mode groovy-imports graphviz-dot-mode gradle-mode google-translate google-c-style golden-ratio gnuplot gitignore-templates gitconfig-mode gitattributes-mode git-timemachine git-messenger git-link git-gutter-fringe+ gh-md fuzzy font-lock+ flyspell-correct-helm flycheck-ycmd flycheck-rtags flycheck-pos-tip flycheck-package flycheck-haskell flycheck-elsa flycheck-elm flycheck-bashate flx-ido fish-mode fancy-battery eyebrowse expand-region evil-visualstar evil-visual-mark-mode evil-unimpaired evil-tutor evil-textobj-line evil-surround evil-org evil-numbers evil-nerd-commenter evil-mc evil-matchit evil-magit evil-lisp-state evil-lion evil-indent-plus evil-iedit-state evil-goggles evil-exchange evil-escape evil-ediff evil-cleverparens evil-args evil-anzu eval-sexp-fu eshell-z eshell-prompt-extras esh-help emr emmet-mode elm-test-runner elm-mode elisp-slime-nav editorconfig dumb-jump dotenv-mode disaster diminish devdocs define-word dante cython-mode csv-mode cpp-auto-include company-ycmd company-web company-shell company-rtags company-reftex company-ghci company-ghc company-cabal company-c-headers company-auctex company-anaconda column-enforce-mode cmm-mode clean-aindent-mode centered-cursor-mode ccls calfw-org calfw browse-at-remote blacken auto-yasnippet auto-highlight-symbol auto-dictionary auto-compile auctex-latexmk attrap aggressive-indent ace-link ace-jump-helm-line ac-ispell)))
+   '(org-re-reveal deft toml-mode racer helm-gtags ggtags flycheck-rust counsel-gtags counsel swiper cargo rust-mode ox-hugo org-journal emacsql-sqlite3 emacsql slime-company slime common-lisp-snippets ob-mermaid doom-themes cyberpunk-theme fill-column-indicator zenburn-theme yasnippet-snippets yapfify yaml-mode xterm-color ws-butler writeroom-mode winum which-key web-mode web-beautify vterm volatile-highlights vi-tilde-fringe uuidgen use-package unfill treemacs-projectile treemacs-persp treemacs-magit treemacs-icons-dired treemacs-evil toc-org terminal-here tagedit symon symbol-overlay string-inflection spaceline-all-the-icons smeargle slim-mode shell-pop scss-mode scala-mode sbt-mode sass-mode restart-emacs rainbow-delimiters pytest pyenv-mode py-isort pug-mode prettier-js popwin plantuml-mode pippel pipenv pip-requirements pcre2el password-generator paradox overseer orgit org-superstar org-ref org-projectile org-present org-pomodoro org-mime org-gcal org-download org-cliplink org-brain open-junk-file nameless mwim mvn multi-term move-text mmm-mode meghanada maven-test-mode markdown-toc magit-svn magit-section magit-gitflow macrostep lsp-ui lsp-python-ms lsp-metals lsp-java lsp-haskell lorem-ipsum live-py-mode link-hint intero insert-shebang indent-guide importmagic impatient-mode hybrid-mode hungry-delete hlint-refactor hl-todo hindent highlight-parentheses highlight-numbers highlight-indentation helm-xref helm-themes helm-swoop helm-rtags helm-pydoc helm-purpose helm-projectile helm-org-rifle helm-org helm-mode-manager helm-make helm-lsp helm-ls-git helm-hoogle helm-gitignore helm-git-grep helm-flx helm-descbinds helm-css-scss helm-company helm-c-yasnippet helm-ag haskell-snippets groovy-mode groovy-imports graphviz-dot-mode gradle-mode google-translate google-c-style golden-ratio gnuplot gitignore-templates gitconfig-mode gitattributes-mode git-timemachine git-messenger git-link git-gutter-fringe+ gh-md fuzzy font-lock+ flyspell-correct-helm flycheck-ycmd flycheck-rtags flycheck-pos-tip flycheck-package flycheck-haskell flycheck-elsa flycheck-elm flycheck-bashate flx-ido fish-mode fancy-battery eyebrowse expand-region evil-visualstar evil-visual-mark-mode evil-unimpaired evil-tutor evil-textobj-line evil-surround evil-org evil-numbers evil-nerd-commenter evil-mc evil-matchit evil-magit evil-lisp-state evil-lion evil-indent-plus evil-iedit-state evil-goggles evil-exchange evil-escape evil-ediff evil-cleverparens evil-args evil-anzu eval-sexp-fu eshell-z eshell-prompt-extras esh-help emr emmet-mode elm-test-runner elm-mode elisp-slime-nav editorconfig dumb-jump dotenv-mode disaster diminish devdocs define-word dante cython-mode csv-mode cpp-auto-include company-ycmd company-web company-shell company-rtags company-reftex company-ghci company-ghc company-cabal company-c-headers company-auctex company-anaconda column-enforce-mode cmm-mode clean-aindent-mode centered-cursor-mode ccls calfw-org calfw browse-at-remote blacken auto-yasnippet auto-highlight-symbol auto-dictionary auto-compile auctex-latexmk attrap aggressive-indent ace-link ace-jump-helm-line ac-ispell))
  '(python-shell-interpreter "python3")
- '(safe-local-variable-values (quote ((TeX-command-extra-options . "-shell-escape"))))
+ '(safe-local-variable-values
+   '((TeX-engine . xelatex)
+     (ispell-local-directory . "brasileiro")
+     (TeX-command-extra-options . "-shell-escape")))
+ '(spacemacs-theme-custom-colors
+   '((base . "#ffffff")
+     (bg1 . "#282a36")
+     (cblk-ln-bg . "#ffffff")
+     (comment . "#6272a4")
+     (comment-bg . "#282a36")
+     (func . "#50fa7b")
+     (head3-bg . "#ffffff")
+     (keyword . "#ff79c6")
+     (mat . "#ffffff")
+     (meta . "#86dc2f")
+     (str . "#f1fa8c")
+     (type . "#8be9fd")
+     (var . "#7590db")))
  '(vc-annotate-background "#2B2B2B")
  '(vc-annotate-color-map
-   (quote
-    ((20 . "#BC8383")
+   '((20 . "#BC8383")
      (40 . "#CC9393")
      (60 . "#DFAF8F")
      (80 . "#D0BF8F")
@@ -601,7 +651,7 @@ This function is called at the very end of Spacemacs initialization."
      (300 . "#7CB8BB")
      (320 . "#8CD0D3")
      (340 . "#94BFF3")
-     (360 . "#DC8CC3"))))
+     (360 . "#DC8CC3")))
  '(vc-annotate-very-old-color "#DC8CC3"))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
