@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: org-reveal new column
+# key: reveal-col
+# --
+#+reveal_html: <div class="column" style="float: ${1:side}; width: ${2:width}%">
+$0
+#+reveal_html: </div>

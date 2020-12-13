@@ -1,0 +1,13 @@
+# -*- mode: snippet -*-
+# name: table-to-fsa
+# key: tbl2fsa
+# --
+#+name: ${1:name}
+#+header: :var tbl=${2:table}
+#+header: :results output raw
+#+header: :wrap "src dot :file $1.png :cmdline -Kcirco -Tpng"
+#+begin_src emacs-lisp
+(require 'table-to-dot)
+(write-fsa tbl "$1")
+#+end_src
+$0

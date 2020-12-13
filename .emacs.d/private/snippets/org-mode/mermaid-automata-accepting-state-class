@@ -1,0 +1,5 @@
+# -*- mode: snippet -*-
+# name: Mermaid Automata Accepting State Class
+# key: mmaccept
+# --
+classDef accept stroke:#000,stroke-width:5px

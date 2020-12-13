@@ -1,0 +1,15 @@
+# -*- mode: snippet -*-
+#name : new-elisp-file
+#key : elfile
+#contributor : Jefferson Andrade
+# --
+;;; $1.el --- $2
+
+;;; Commentary:
+
+;;; Code:
+
+$0
+
+(provide '$1)
+;;; acronym.el ends here
